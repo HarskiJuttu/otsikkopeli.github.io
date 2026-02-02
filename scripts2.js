@@ -49,7 +49,7 @@ function getCategoryURL(category) {
      * We can't fetch RSS feeds directly from the browser, so we use a proxy service.
      */
 function buildProxyURL(rssUrl) {
-    return "https://corsproxy.io/?" + encodeURIComponent(rssUrl);
+    return "https://api.allorigins.win/get?url=" + encodeURIComponent(rssUrl);
 }
 
 /**
@@ -65,7 +65,15 @@ async function titleSearch(url) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const xmlText = await response.text();
+    // Handle JSON response from allorigins /get endpoint
+    let xmlText;
+    if (url.includes('api.allorigins.win/get')) {
+      const jsonData = await response.json();
+      xmlText = jsonData.contents;
+    } else {
+      xmlText = await response.text();
+    }
+
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlText, "text/xml");
     const items = xmlDoc.querySelectorAll("item");
@@ -77,18 +85,8 @@ async function titleSearch(url) {
       const linkElement = item.querySelector("link");
 
       if (titleElement && linkElement) {
-        let title = titleElement.textContent.toUpperCase();
+        const title = titleElement.textContent.toUpperCase();
         const link = linkElement.textContent;
-
-        // Remove category prefix (e.g., "KOTIMAA | " or "URHEILU | ")
-        // This removes everything up to and including the first '|'
-        const pipeIndex = title.indexOf('|');
-        if (pipeIndex !== -1) {
-          title = title.substring(pipeIndex + 1).trim();
-        }
-
-        // Remove all remaining '|' characters from the title
-        title = title.replace(/\|/g, '').trim();
 
         // Store both title and the link
         titlesList.push({
